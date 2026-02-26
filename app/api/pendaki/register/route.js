@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { writeFile } from "fs/promises";
 import path from "path";
+import { put } from '@vercel/blob'; // Tambahkan ini (Wajib sudah npm install @vercel/blob)
 
 export async function POST(request) {
   try {
@@ -13,26 +14,34 @@ export async function POST(request) {
     let namaFileUntukDatabase = null;
 
     if (fileDiterima && typeof fileDiterima !== "string") {
-      const bytes = await fileDiterima.arrayBuffer();
-      const buffer = Buffer.from(bytes);
       
-      // Bikin nama file persis kayak di log abang
-      namaFileUntukDatabase = Date.now() + "_identitas_" + fileDiterima.name.replaceAll(" ", "_");
+      // === JALUR VERCEL (OTOMATIS AKTIF DI ONLINE) ===
+      if (process.env.VERCEL) {
+        const blob = await put(`identitas-${Date.now()}-${fileDiterima.name}`, fileDiterima, { 
+          access: 'public' 
+        });
+        // Di Vercel, kita simpan URL Full (https://...) ke database
+        namaFileUntukDatabase = blob.url;
+      } 
       
-      // DISINI KUNCINYA: Simpan LANGSUNG di folder 'public', 
-      // JANGAN masukin ke folder 'uploads' kalau di Page Admin abang manggilnya langsung "/"
-      const publicPath = path.join(process.cwd(), "public");
-      
-      // Cek apakah folder public ada (pasti ada sih), lalu tulis file
-      const filePath = path.join(process.cwd(), "public", "uploads", namaFileUntukDatabase);
-await writeFile(filePath, buffer);
+      // === JALUR LOCALHOST (OTOMATIS AKTIF DI LAPTOP / XAMPP) ===
+      else {
+        const bytes = await fileDiterima.arrayBuffer();
+        const buffer = Buffer.from(bytes);
+        
+        namaFileUntukDatabase = Date.now() + "_identitas_" + fileDiterima.name.replaceAll(" ", "_");
+        const filePath = path.join(process.cwd(), "public", "uploads", namaFileUntukDatabase);
+        
+        await writeFile(filePath, buffer);
+        // Di Localhost, kita tetep simpan nama filenya aja (kayak biasa)
+      }
     }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(data.get("password"), salt);
     const kode_pendaki = `MNT-2026-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    // 2. QUERY (File masuk ke foto_ktp sesuai kemauan abang)
+    // 2. QUERY
     const query = `
       INSERT INTO pendaki (
         kode_pendaki, jenis_identitas, nik_nisn, nama_lengkap, tgl_lahir, 
@@ -47,8 +56,8 @@ await writeFile(filePath, buffer);
       data.get("no_telp"), data.get("no_darurat"), data.get("jenis_kelamin"), data.get("email"), data.get("berat_badan"),
       data.get("tinggi_badan"), data.get("provinsi"), data.get("kota"), data.get("kecamatan"), data.get("kelurahan"),
       data.get("alamat"), data.get("username"), hashedPassword, 
-      namaFileUntukDatabase, // Masuk ke foto_ktp (Lampiran)
-      null,                  // Masuk ke foto_identitas (Profil)
+      namaFileUntukDatabase, // Bisa berupa URL Blob (Vercel) atau Nama File (Localhost)
+      null,
       'active'
     ];
 
