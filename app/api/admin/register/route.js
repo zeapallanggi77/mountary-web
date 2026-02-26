@@ -3,12 +3,13 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { writeFile } from "fs/promises";
 import path from "path";
+import { put } from '@vercel/blob'; // Tambahkan ini
 
 export async function POST(req) {
   try {
     const formData = await req.formData();
     
-    // 1. Ambil Data Teks (tanpa track_id karena sudah dihapus di form)
+    // Ambil Data Teks
     const nama_lengkap = formData.get("nama_lengkap");
     const email = formData.get("email");
     const username = formData.get("username");
@@ -23,7 +24,7 @@ export async function POST(req) {
     const no_hp_pj = formData.get("no_hp_pj");
     const alasan_pengajuan = formData.get("alasan_pengajuan");
 
-    // 2. Cek apakah username/email sudah ada
+    // Cek duplikasi
     const [existing] = await db.query(
       "SELECT id FROM admin WHERE username = ? OR email = ?",
       [username, email]
@@ -32,15 +33,21 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "Username atau Email sudah terdaftar!" }, { status: 400 });
     }
 
-    // 3. Proses Upload File (KTP, Foto Basecamp, SK)
+    // FUNGSI UPLOAD DUA JALUR
     const uploadFile = async (file, prefix) => {
       if (!file || typeof file === "string") return null;
+
+      // JALUR VERCEL
+      if (process.env.VERCEL) {
+        const blob = await put(`${prefix}-${file.name}`, file, { access: 'public' });
+        return blob.url; // Simpan URL Full
+      }
+
+      // JALUR LOCALHOST (Aman buat XAMPP)
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
-      
       const fileName = `${prefix}-${Date.now()}-${file.name.replace(/\s/g, "-")}`;
       const filePath = path.join(process.cwd(), "public/uploads", fileName);
-      
       await writeFile(filePath, buffer);
       return fileName;
     };
@@ -49,41 +56,21 @@ export async function POST(req) {
     const skPengelolaName = await uploadFile(formData.get("sk_pengelola"), "SK");
     const fotoKtpPjName = await uploadFile(formData.get("foto_ktp_pj"), "KTP");
 
-    // 4. Hash Password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 5. Simpan ke Database
-    // track_id dikirim sebagai NULL karena satu admin memegang satu gunung (semua jalur)
     await db.query(
       `INSERT INTO admin (
         nama_lengkap, email, username, password, role, status, mountain_id, track_id,
         nama_basecamp, alamat_basecamp, kontak_basecamp, koordinat_basecamp,
         sk_pengelola, foto_basecamp, nama_pj, nik_pj, foto_ktp_pj, no_hp_pj, alasan_pengajuan
       ) VALUES (?, ?, ?, ?, 'admin_gunung', 'pending', ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        nama_lengkap, 
-        email, 
-        username, 
-        hashedPassword, 
-        mountain_id, 
-        nama_basecamp, 
-        alamat_basecamp, 
-        kontak_basecamp, 
-        lokasi_map,
-        skPengelolaName, 
-        fotoBasecampName, 
-        nama_pj, 
-        nik_pj, 
-        fotoKtpPjName, 
-        no_hp_pj, 
-        alasan_pengajuan
-      ]
+      [nama_lengkap, email, username, hashedPassword, mountain_id, nama_basecamp, alamat_basecamp, kontak_basecamp, lokasi_map, skPengelolaName, fotoBasecampName, nama_pj, nik_pj, fotoKtpPjName, no_hp_pj, alasan_pengajuan]
     );
 
-    return NextResponse.json({ success: true, message: "Pendaftaran berhasil, menunggu approval." });
+    return NextResponse.json({ success: true, message: "Pendaftaran berhasil." });
 
   } catch (error) {
     console.error("REGISTER_ERROR:", error);
-    return NextResponse.json({ success: false, error: "Gagal memproses pendaftaran: " + error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
