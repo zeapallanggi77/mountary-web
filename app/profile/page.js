@@ -12,6 +12,17 @@ export default function ProfilePage() {
   const router = useRouter();
   const fileInputRef = useRef(null);
 
+  // LOGIKA FIX: Fungsi untuk deteksi jalur gambar (Local vs Online)
+  const getAvatarSrc = (source) => {
+    if (!source) return null;
+    // Jika sudah link full (http) atau data upload baru (data:), pakai langsung
+    if (source.startsWith('http') || source.startsWith('data:')) {
+      return source;
+    }
+    // Jika hanya nama file (hasil simpan di local), arahkan ke folder uploads
+    return `/uploads/${source}`;
+  };
+
   useEffect(() => {
     const savedUser = localStorage.getItem("pendakiUser");
     if (!savedUser) {
@@ -22,7 +33,7 @@ export default function ProfilePage() {
     const userData = JSON.parse(savedUser);
     
     setUser(userData);
-    setFormData({ ...userData, new_password: "" }); // Inisialisasi field password kosong
+    setFormData({ ...userData, new_password: "" });
 
     const getProfile = async () => {
       try {
@@ -83,7 +94,6 @@ export default function ProfilePage() {
       return;
     }
 
-    // Validasi panjang password jika diisi
     if (formData.new_password && formData.new_password.length < 6) {
       alert("Password minimal 6 karakter bwang! 🔒");
       return;
@@ -97,12 +107,11 @@ export default function ProfilePage() {
       });
       
       if (res.ok) {
-        // Jangan simpan password ke local storage demi keamanan
         const { new_password, ...dataToSave } = formData;
         const updatedData = { ...user, ...dataToSave };
         
         setUser(updatedData);
-        setFormData({ ...updatedData, new_password: "" }); // Reset field password
+        setFormData({ ...updatedData, new_password: "" });
         localStorage.setItem("pendakiUser", JSON.stringify(updatedData));
         setIsEditing(false);
         alert("Profil & Password berhasil diperbarui bwang! ✨");
@@ -188,7 +197,6 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* CONTENT AREA */}
       <div className="max-w-6xl mx-auto -mt-20 md:-mt-24 px-4 grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         {/* SIDEBAR PROFIL */}
@@ -204,7 +212,8 @@ export default function ProfilePage() {
             <div className="flex flex-col items-center">
               <div className="w-44 h-44 rounded-full overflow-hidden border-8 border-slate-50 shadow-xl mb-4 bg-slate-200 flex items-center justify-center">
                 {previewImage ? (
-                  <img src={previewImage} alt="Avatar" className="w-full h-full object-cover" />
+                  /* FIX: Menggunakan fungsi getAvatarSrc */
+                  <img src={getAvatarSrc(previewImage)} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-4xl text-slate-400 font-black italic uppercase">{user?.username?.substring(0, 2) || "??"}</span>
                 )}
@@ -238,18 +247,9 @@ export default function ProfilePage() {
               <EditableDetailRow label="No. Telp / WA" name="no_telp" value={formData.no_telp} isEditing={isEditing} onChange={handleInputChange} />
               <EditableDetailRow label="NIK / NISN" name="nik_nisn" value={formData.nik_nisn} isEditing={isEditing} onChange={handleInputChange} />
               
-              {/* INPUT PASSWORD BARU (Hanya saat edit) */}
               {isEditing && (
                 <div className="md:col-span-2 bg-blue-50/50 p-6 rounded-3xl border border-blue-100 border-dashed">
-                  <EditableDetailRow 
-  label="Ganti Password (Kosongkan jika tidak diubah)" 
-  name="new_password" 
-  value={formData.new_password} 
-  isEditing={isEditing} 
-  onChange={handleInputChange} 
-  type="password" // <--- Ini pemicu munculnya ikon mata
-  full 
-/>
+                  <EditableDetailRow label="Ganti Password (Kosongkan jika tidak diubah)" name="new_password" value={formData.new_password} isEditing={isEditing} onChange={handleInputChange} type="password" full />
                 </div>
               )}
 
@@ -258,11 +258,6 @@ export default function ProfilePage() {
               <EditableDetailRow label="Tinggi Badan (CM)" name="tinggi_badan" value={formData.tinggi_badan} isEditing={isEditing} onChange={handleInputChange} type="number" />
               <EditableDetailRow label="Berat Badan (KG)" name="berat_badan" value={formData.berat_badan} isEditing={isEditing} onChange={handleInputChange} type="number" />
             </div>
-            {isEditing && (
-              <div className="mt-8 p-4 bg-orange-50 border border-orange-100 rounded-2xl">
-                <p className="text-[10px] text-orange-600 font-black italic uppercase animate-pulse text-center">Sedang dalam mode edit bwang, jangan lupa klik SIMPAN di atas! ⚠️</p>
-              </div>
-            )}
           </div>
 
           {/* RIWAYAT */}
@@ -283,20 +278,11 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 history.map((item, idx) => (
-                  <div 
-                    key={idx} 
-                    onClick={() => router.push(`/riwayat/${item.verification_code}`)}
-                    className="cursor-pointer bg-white/5 border border-white/10 p-6 rounded-[2.5rem] flex flex-col md:flex-row justify-between items-center hover:bg-white/10 transition group text-white border-l-4 border-l-emerald-500 gap-6"
-                  >
+                  <div key={idx} onClick={() => router.push(`/riwayat/${item.verification_code}`)} className="cursor-pointer bg-white/5 border border-white/10 p-6 rounded-[2.5rem] flex flex-col md:flex-row justify-between items-center hover:bg-white/10 transition group text-white border-l-4 border-l-emerald-500 gap-6">
                     <div className="flex gap-6 items-center w-full md:w-auto">
                         <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-lg shrink-0 group-hover:rotate-3 transition-transform">
-                          <img 
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${item.verification_code}`}
-                            className="w-12 h-12"
-                            alt="qr"
-                          />
+                          <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${item.verification_code}`} className="w-12 h-12" alt="qr" />
                         </div>
-                        
                         <div className="flex-1">
                          <div className="flex items-center gap-2 mb-1">
                            <span className="text-[9px] bg-emerald-500 text-white px-2 py-0.5 rounded-md font-black uppercase italic">Verified</span>
@@ -306,21 +292,6 @@ export default function ProfilePage() {
                            {item.track_name} • {new Date(item.booking_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                          </p>
                        </div>
-                    </div>
-
-                    <div className="flex flex-row md:flex-col items-center md:items-end w-full md:w-auto justify-between pt-6 md:pt-0 border-t md:border-t-0 border-white/10">
-                      <p className="text-white font-mono font-black text-sm tracking-widest opacity-40">#{item.verification_code}</p>
-                      <div className="flex items-center gap-4">
-                         <span className={`text-[10px] font-black uppercase px-4 py-1.5 rounded-full shadow-lg ${
-                           item.status === 'pending' ? 'bg-amber-500 text-slate-900' : 
-                           item.status === 'success' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
-                         }`}>
-                          {item.status}
-                        </span>
-                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-emerald-500 transition-colors">
-                           <span className="text-white text-lg">→</span>
-                        </div>
-                      </div>
                     </div>
                   </div>
                 ))
@@ -334,9 +305,7 @@ export default function ProfilePage() {
 }
 
 function EditableDetailRow({ label, name, value, isEditing, onChange, full = false, type = "text" }) {
-  const [showPassword, setShowPassword] = useState(false); // State buat mata
-
-  // Tentukan tipe input: kalau password dan mata kebuka, jadi text. Kalau gak, balik ke default.
+  const [showPassword, setShowPassword] = useState(false);
   const inputType = type === "password" && showPassword ? "text" : type;
 
   return (
@@ -350,29 +319,11 @@ function EditableDetailRow({ label, name, value, isEditing, onChange, full = fal
             value={value || ""}
             onChange={onChange}
             autoComplete={type === "password" ? "new-password" : "off"}
-            inputMode={name === "nik_nisn" || name === "no_telp" ? "numeric" : "text"}
             className="w-full bg-slate-50 border-b-4 border-emerald-400 py-3 px-2 text-base font-black text-slate-700 outline-none focus:bg-emerald-50 transition uppercase tracking-tighter pr-10"
           />
-          
-          {/* TOMBOL MATA: Hanya muncul jika type-nya "password" */}
-{type === "password" && (
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-500 transition-colors p-2"
-            >
-              {showPassword ? (
-                // Ikon Mata Coret (Hide)
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-                </svg>
-              ) : (
-                // Ikon Mata Terbuka (Show)
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              )}
+          {type === "password" && (
+            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 p-2">
+              {showPassword ? "👁️" : "👁️‍🗨️"}
             </button>
           )}
         </div>
