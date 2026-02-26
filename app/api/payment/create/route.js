@@ -1,5 +1,3 @@
-// app/api/payment/create/route.js
-
 import midtransClient from "midtrans-client";
 import { NextResponse } from "next/server";
 
@@ -8,15 +6,17 @@ export async function POST(req) {
     const { bookingCode, totalHarga, namaUser, emailUser } = await req.json();
 
     let snap = new midtransClient.Snap({
-      // Jika key kamu TIDAK pakai "SB-", isProduction HARUS true
       isProduction: false, 
-      serverKey: 'Mid-server-seGqk6rPp8Y2TgHJI3r2_F5j', // Masukkan langsung disini
-      clientKey: 'Mid-client-vVrOsZSaPG7z_JNw'   // Masukkan langsung disini
+      serverKey: 'Mid-server-seGqk6rPp8Y2TgHJI3r2_F5j',
+      clientKey: 'Mid-client-vVrOsZSaPG7z_JNw'
     });
+
+    // Menambahkan timestamp agar order_id unik di Midtrans
+    const uniqueOrderId = `${bookingCode}-${Date.now()}`;
 
     let parameter = {
       transaction_details: {
-        order_id: bookingCode,
+        order_id: uniqueOrderId, // Pakai yang unik
         gross_amount: totalHarga,
       },
       customer_details: {
@@ -30,7 +30,6 @@ export async function POST(req) {
 
   } catch (error) {
     console.error("Midtrans Error:", error);
-    // Ini supaya kita bisa liat error aslinya di inspect element frontend
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

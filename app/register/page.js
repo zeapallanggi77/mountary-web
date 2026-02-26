@@ -44,6 +44,11 @@ function RegisterContent() {
   const handleRegister = async (e) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) return alert("Password konfirmasi gak cocok!");
+    
+    // VALIDASI WAJIB UPLOAD FOTO
+    if (!files.foto_identitas) {
+      return alert("Anda wajib mengunggah foto identitas (KTP/SIM/Kartu Pelajar)!");
+    }
 
     setLoading(true);
     try {
@@ -163,7 +168,13 @@ function FileInput({ label, onChange, required = false }) {
   return (
     <div className="p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
       <p className="text-[9px] font-black uppercase text-slate-400 mb-2 italic">{label} {required && "*"}</p>
-      <input type="file" onChange={onChange} className="block w-full text-[10px] text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-slate-900 file:text-white cursor-pointer" />
+      <input 
+        type="file" 
+        onChange={onChange} 
+        required={required}
+        accept="image/*"
+        className="block w-full text-[10px] text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-slate-900 file:text-white cursor-pointer" 
+      />
     </div>
   );
 }

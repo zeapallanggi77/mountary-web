@@ -9,9 +9,14 @@ export async function POST(request) {
   try {
     const data = await request.formData();
 
-    // 1. PROSES UPLOAD
+    // 1. PROSES UPLOAD & VALIDASI WAJIB FILE
     const fileDiterima = data.get("foto_identitas");
     let namaFileUntukDatabase = null;
+
+    // VALIDASI: Jika file tidak ada atau kosong, kirim error 400
+    if (!fileDiterima || typeof fileDiterima === "string" || fileDiterima.size === 0) {
+      return NextResponse.json({ error: "Foto identitas wajib diunggah!" }, { status: 400 });
+    }
 
     if (fileDiterima && typeof fileDiterima !== "string") {
       
@@ -56,7 +61,7 @@ export async function POST(request) {
       data.get("no_telp"), data.get("no_darurat"), data.get("jenis_kelamin"), data.get("email"), data.get("berat_badan"),
       data.get("tinggi_badan"), data.get("provinsi"), data.get("kota"), data.get("kecamatan"), data.get("kelurahan"),
       data.get("alamat"), data.get("username"), hashedPassword, 
-      namaFileUntukDatabase, // Bisa berupa URL Blob (Vercel) atau Nama File (Localhost)
+      namaFileUntukDatabase, // Menyimpan URL Blob atau Nama File ke kolom foto_ktp
       null,
       'active'
     ];
