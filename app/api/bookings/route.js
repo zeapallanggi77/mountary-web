@@ -36,7 +36,7 @@ export async function POST(request) {
       `SELECT SUM(total_members) as total_filled FROM bookings WHERE track_id = ? AND booking_date = ? AND status NOT IN ('CANCELED', 'EXPIRED')`,
       [track_id, booking_date]
     );
-    if ((quotaRows[0].total_filled || 0) + total_people > 50) {
+    if ((quotaRows[0].total_filled || 0) + total_people > 200) {
       return NextResponse.json({ success: false, error: "KUOTA PENUH!" }, { status: 400 });
     }
 

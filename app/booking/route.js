@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import mysql from "mysql2/promise";
 
 const db = mysql.createPool({
-  host: "localhost",
-  user: "root",
-  password: "",
-  database: "mountary",
+  host: "mysql-3d5321cd-xxxx.aivencloud.com", // Ambil dari host Aiven kamu
+  port: 20000, // Port Aiven biasanya bukan 3306
+  user: "avnadmin", // User Aiven
+  password: "PASSWORD_AIVEN_KAMU", 
+  database: "defaultdb", // Database Aiven biasanya defaultdb
+  ssl: { rejectUnauthorized: false } // Aiven WAJIB pakai SSL
 });
 
 export async function POST(request) {
